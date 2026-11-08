@@ -15,104 +15,60 @@ import { soundManager } from '@/app/utils/sounds'
 
 export default function Home() {
   const [gameState, gameActions] = useGameLogic()
-  const {
-    snake,
-    food,
-    score,
-    gameState: state,
-    difficulty,
-    bestScore,
-    gameTime,
-  } = gameState
-  const {
-    initialize,
-    startGame,
-    pauseGame,
-    resumeGame,
-    restartGame,
-    changeDirection,
-    setDifficulty,
-  } = gameActions
+  const { snake, food, score, gameState: state, difficulty, bestScore, gameTime, direction } = gameState
+  const { initialize, startGame, pauseGame, resumeGame, restartGame, changeDirection, setDifficulty } = gameActions
 
   const [soundEnabled, setSoundEnabled] = useState(true)
   const [showNotification, setShowNotification] = useState(false)
   const [notificationMessage, setNotificationMessage] = useState('')
   const lastMilestoneRef = useRef(0)
 
-  // Initialize game on mount
   useEffect(() => {
     initialize(difficulty)
     setSoundEnabled(soundManager.isEnabled())
-  }, [])
+  }, [initialize])
 
-  // Check for milestones
   useEffect(() => {
     const milestones = [5, 10, 15, 20, 25, 30, 40, 50]
-    const currentMilestone = milestones.find((m) => score >= m && score < m + 1)
-
-    if (currentMilestone && currentMilestone !== lastMilestoneRef.current) {
-      lastMilestoneRef.current = currentMilestone
-      setNotificationMessage(`🎯 Milestone: ${currentMilestone} Points!`)
+    const hit = milestones.find((milestone) => score >= milestone && score < milestone + 1)
+    if (hit && hit !== lastMilestoneRef.current) {
+      lastMilestoneRef.current = hit
+      setNotificationMessage(`Milestone: ${hit} points`)
       setShowNotification(true)
       soundManager.playMilestone()
     }
   }, [score])
 
-  // Keyboard controls
+  const handlePlayGame = () => { soundManager.playClick(); startGame() }
+  const handleNewGame = () => { soundManager.playClick(); restartGame() }
+  const handleSelectDifficulty = (next: typeof difficulty) => { soundManager.playClick(); setDifficulty(next) }
+  const handleSoundToggle = () => { setSoundEnabled(soundManager.toggleSound()) }
+
   useKeyboardControls({
     onDirectionChange: changeDirection,
     onPause: pauseGame,
     onResume: resumeGame,
-    onStart: startGame,
+    onStart: handlePlayGame,
+    onRestart: handleNewGame,
     gameState: state,
   })
-
-  // Touch controls
-  useTouchControls({
-    onDirectionChange: changeDirection,
-    gameState: state,
-    enabled: state === 'playing',
-  })
-
-  const handlePlayGame = () => {
-    soundManager.playClick()
-    startGame()
-  }
-
-  const handleNewGame = () => {
-    soundManager.playClick()
-    restartGame()
-  }
-
-  const handleSelectDifficulty = (newDifficulty: typeof difficulty) => {
-    soundManager.playClick()
-    setDifficulty(newDifficulty)
-  }
-
-  const handleSoundToggle = () => {
-    const enabled = soundManager.toggleSound()
-    setSoundEnabled(enabled)
-  }
+  useTouchControls({ onDirectionChange: changeDirection, gameState: state, enabled: state === 'playing' })
 
   return (
-    <main className="w-screen h-screen bg-slate-950 text-white overflow-hidden select-none flex flex-col">
-      {/* Animated background */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute top-1/4 -left-1/2 w-96 h-96 bg-neon-green/5 rounded-full blur-3xl animate-float" />
-        <div className="absolute bottom-1/4 -right-1/2 w-96 h-96 bg-neon-purple/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }} />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full h-96 bg-neon-cyan/5 rounded-full blur-3xl animate-float" style={{ animationDelay: '2s' }} />
+    <>
+      <div className="ambient" aria-hidden>
+        <div className="orb orb-a" />
+        <div className="orb orb-b" />
+        <div className="orb orb-c" />
       </div>
 
-      {/* Content */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center w-full px-4 py-8 gap-4">
+      <div className="game-shell" onContextMenu={(event) => event.preventDefault()}>
         <GameHeader gameState={state} />
-
         <ScoreBoard currentScore={score} bestScore={bestScore} gameTime={gameTime} />
-
-        <GameBoard snake={snake} food={food} difficulty={difficulty} />
-
-        <DirectionPad onDirectionChange={changeDirection} hidden={state === 'gameOver'} />
-
+        <div className="play-row">
+          <GameBoard snake={snake} food={food} difficulty={difficulty} direction={direction} />
+          <DirectionPad onDirectionChange={changeDirection} hidden={state === 'gameOver'} />
+        </div>
         <GameControls
           gameState={state}
           onStart={handlePlayGame}
@@ -126,7 +82,6 @@ export default function Home() {
         />
       </div>
 
-      {/* Overlay */}
       <GameOverlay
         gameState={state}
         score={score}
@@ -138,8 +93,7 @@ export default function Home() {
         onSelectDifficulty={handleSelectDifficulty}
       />
 
-      {/* Notification */}
       <Notification message={notificationMessage} score={score} visible={showNotification} />
-    </main>
+    </>
   )
 }

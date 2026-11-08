@@ -42,34 +42,25 @@ export const getRandomPosition = (
   gridSize: number,
   snake: Position[]
 ): Position => {
-  let position: Position
-  let valid = false
+  if (snake.length >= gridSize * gridSize) return { x: 0, y: 0 }
 
-  while (!valid) {
+  const occupied = new Set(snake.map((segment) => `${segment.x},${segment.y}`))
+  let position: Position = { x: 0, y: 0 }
+  let guard = 0
+
+  do {
     position = {
       x: Math.floor(Math.random() * gridSize),
       y: Math.floor(Math.random() * gridSize),
     }
+    guard += 1
+  } while (occupied.has(`${position.x},${position.y}`) && guard < gridSize * gridSize * 2)
 
-    valid = !snake.some(
-      (segment) => segment.x === position.x && segment.y === position.y
-    )
-  }
-
-  return position!
+  return position
 }
 
-export const checkSelfCollision = (snake: Position[]): boolean => {
-  if (snake.length < 4) return false
-
-  const head = snake[0]
-  for (let i = 1; i < snake.length; i++) {
-    if (snake[i].x === head.x && snake[i].y === head.y) {
-      return true
-    }
-  }
-
-  return false
+export const checkSelfCollision = (head: Position, body: Position[]): boolean => {
+  return body.some((segment) => segment.x === head.x && segment.y === head.y)
 }
 
 export const checkFoodCollision = (snake: Position[], food: Position): boolean => {

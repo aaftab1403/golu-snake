@@ -11,8 +11,11 @@ class SoundManager {
 
   private getAudioContext(): AudioContext {
     if (!this.audioContext && typeof window !== 'undefined') {
-      this.audioContext = new (window.AudioContext || (window as any).webkitAudioContext)()
+      const AudioCtx = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+      if (!AudioCtx) return null as unknown as AudioContext
+      this.audioContext = new AudioCtx()
     }
+    if (this.audioContext?.state === 'suspended') void this.audioContext.resume()
     return this.audioContext!
   }
 

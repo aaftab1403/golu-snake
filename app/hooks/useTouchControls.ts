@@ -12,60 +12,49 @@ export const useTouchControls = ({
   gameState,
   enabled = true,
 }: TouchControlsOptions) => {
-  const touchStartRef = useRef<{ x: number; y: number } | null>(null)
-  const lastDirectionRef = useRef<Direction>('right')
+  const startRef = useRef<{ x: number; y: number } | null>(null)
 
   useEffect(() => {
     if (!enabled || gameState !== 'playing') return
 
-    const handleTouchStart = (e: TouchEvent) => {
-      const touch = e.touches[0]
-      touchStartRef.current = { x: touch.clientX, y: touch.clientY }
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType === 'mouse') return
+      const target = event.target as Element | null
+      if (target?.closest('[data-control]')) return
+      startRef.current = { x: event.clientX, y: event.clientY }
     }
 
-    const handleTouchEnd = (e: TouchEvent) => {
-      if (!touchStartRef.current) return
+    const onPointerUp = (event: PointerEvent) => {
+      const start = startRef.current
+      startRef.current = null
+      if (!start || event.pointerType === 'mouse') return
 
-      const touch = e.changedTouches[0]
-      const deltaX = touch.clientX - touchStartRef.current.x
-      const deltaY = touch.clientY - touchStartRef.current.y
+      const dx = event.clientX - start.x
+      const dy = event.clientY - start.y
+      if (Math.abs(dx) < 24 && Math.abs(dy) < 24) return
 
-      // Minimum swipe distance
-      const minDistance = 30
-
-      let newDirection: Direction | null = null
-
-      // Determine swipe direction
-      if (Math.abs(deltaX) > Math.abs(deltaY)) {
-        // Horizontal swipe
-        if (deltaX > minDistance && lastDirectionRef.current !== 'left') {
-          newDirection = 'right'
-        } else if (deltaX < -minDistance && lastDirectionRef.current !== 'right') {
-          newDirection = 'left'
-        }
-      } else {
-        // Vertical swipe
-        if (deltaY > minDistance && lastDirectionRef.current !== 'up') {
-          newDirection = 'down'
-        } else if (deltaY < -minDistance && lastDirectionRef.current !== 'down') {
-          newDirection = 'up'
-        }
-      }
-
-      if (newDirection) {
-        onDirectionChange(newDirection)
-        lastDirectionRef.current = newDirection
-      }
-
-      touchStartRef.current = null
+      if (Math.abs(dx) > Math.abs(dy)) onDirectionChange(dx > 0 ? 'right' : 'left')
+      else onDirectionChange(dy > 0 ? 'down' : 'up')
     }
 
-    window.addEventListener('touchstart', handleTouchStart)
-    window.addEventListener('touchend', handleTouchEnd)
+    const onPointerCancel = () => {
+      startRef.current = null
+    }
+
+    const onTouchMove = (event: TouchEvent) => {
+      if (startRef.current) event.preventDefault()
+    }
+
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerCancel)
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
 
     return () => {
-      window.removeEventListener('touchstart', handleTouchStart)
-      window.removeEventListener('touchend', handleTouchEnd)
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerCancel)
+      window.removeEventListener('touchmove', onTouchMove)
     }
   }, [onDirectionChange, gameState, enabled])
 }

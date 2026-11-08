@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect } from 'react'
 import { Direction, GameState } from '@/app/types'
 
 interface KeyboardControlsOptions {
@@ -6,7 +6,19 @@ interface KeyboardControlsOptions {
   onPause: () => void
   onResume: () => void
   onStart: () => void
+  onRestart: () => void
   gameState: GameState
+}
+
+const KEY_TO_DIRECTION: Record<string, Direction> = {
+  arrowup: 'up',
+  w: 'up',
+  arrowdown: 'down',
+  s: 'down',
+  arrowleft: 'left',
+  a: 'left',
+  arrowright: 'right',
+  d: 'right',
 }
 
 export const useKeyboardControls = ({
@@ -14,71 +26,30 @@ export const useKeyboardControls = ({
   onPause,
   onResume,
   onStart,
+  onRestart,
   gameState,
 }: KeyboardControlsOptions) => {
-  const keysRef = useRef<Set<string>>(new Set())
-  const lastDirectionRef = useRef<Direction>('right')
-
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase()
-      keysRef.current.add(key)
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const key = event.key.toLowerCase()
 
-      // Prevent default browser behavior for game keys
       if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', ' '].includes(key)) {
-        e.preventDefault()
+        event.preventDefault()
       }
 
-      // Direction changes
-      if (key === 'arrowup' || key === 'w') {
-        if (lastDirectionRef.current !== 'down') {
-          onDirectionChange('up')
-          lastDirectionRef.current = 'up'
-        }
-      } else if (key === 'arrowdown' || key === 's') {
-        if (lastDirectionRef.current !== 'up') {
-          onDirectionChange('down')
-          lastDirectionRef.current = 'down'
-        }
-      } else if (key === 'arrowleft' || key === 'a') {
-        if (lastDirectionRef.current !== 'right') {
-          onDirectionChange('left')
-          lastDirectionRef.current = 'left'
-        }
-      } else if (key === 'arrowright' || key === 'd') {
-        if (lastDirectionRef.current !== 'left') {
-          onDirectionChange('right')
-          lastDirectionRef.current = 'right'
-        }
-      }
+      const direction = KEY_TO_DIRECTION[key]
+      if (direction) onDirectionChange(direction)
 
-      // Game state changes
       if (key === ' ') {
-        // Spacebar for pause/resume
-        if (gameState === 'playing') {
-          onPause()
-        } else if (gameState === 'paused') {
-          onResume()
-        }
+        if (gameState === 'playing') onPause()
+        else if (gameState === 'paused') onResume()
       } else if (key === 'enter') {
-        // Enter to start
-        if (gameState === 'ready') {
-          onStart()
-        }
+        if (gameState === 'ready') onStart()
+        else if (gameState === 'gameOver') onRestart()
       }
-    }
-
-    const handleKeyUp = (e: KeyboardEvent) => {
-      const key = e.key.toLowerCase()
-      keysRef.current.delete(key)
     }
 
     window.addEventListener('keydown', handleKeyDown)
-    window.addEventListener('keyup', handleKeyUp)
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-      window.removeEventListener('keyup', handleKeyUp)
-    }
-  }, [onDirectionChange, onPause, onResume, onStart, gameState])
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onDirectionChange, onPause, onResume, onStart, onRestart, gameState])
 }

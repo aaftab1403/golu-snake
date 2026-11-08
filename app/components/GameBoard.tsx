@@ -1,6 +1,7 @@
 'use client'
 
-import { Position, GAME_CONFIGS, Difficulty } from '@/app/types'
+import { useEffect, useRef, useState } from 'react'
+import { Position, GAME_CONFIGS, Difficulty, Direction } from '@/app/types'
 import { Snake } from './Snake'
 import { Food } from './Food'
 
@@ -8,37 +9,43 @@ interface GameBoardProps {
   snake: Position[]
   food: Position
   difficulty: Difficulty
+  direction: Direction
 }
 
-export const GameBoard: React.FC<GameBoardProps> = ({ snake, food, difficulty }) => {
-  const config = GAME_CONFIGS[difficulty]
-  const boardSize = config.gridSize * config.cellSize
+export const GameBoard: React.FC<GameBoardProps> = ({ snake, food, difficulty, direction }) => {
+  const slotRef = useRef<HTMLDivElement>(null)
+  const gridSize = GAME_CONFIGS[difficulty].gridSize
+  const [side, setSide] = useState(0)
+
+  useEffect(() => {
+    const el = slotRef.current
+    if (!el) return
+
+    const measure = () => {
+      const { width, height } = el.getBoundingClientRect()
+      const cell = Math.floor(Math.min(width, height) / gridSize)
+      if (cell < 4) return
+      setSide(cell * gridSize)
+    }
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [gridSize])
+
+  const cellSize = side / gridSize
 
   return (
-    <div className="w-full flex justify-center mb-8">
-      <div
-        className="relative bg-slate-950 rounded-lg border-2 border-neon-green/50 shadow-2xl overflow-hidden"
-        style={{
-          width: boardSize,
-          height: boardSize,
-          boxShadow: '0 0 30px rgb(0 255 65 / 0.2), inset 0 0 30px rgb(0 255 65 / 0.05)',
-        }}
-      >
-        {/* Grid background */}
-        <div
-          className="absolute inset-0 opacity-5"
-          style={{
-            backgroundImage: `linear-gradient(rgba(0, 255, 65, 0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 255, 65, 0.3) 1px, transparent 1px)`,
-            backgroundSize: `${config.cellSize}px ${config.cellSize}px`,
-          }}
-        />
-
-        {/* Game elements */}
-        <div className="relative w-full h-full">
-          <Snake snake={snake} cellSize={config.cellSize} />
-          <Food food={food} cellSize={config.cellSize} />
+    <div ref={slotRef} className="board-slot">
+      {side > 0 && (
+        <div className="board" style={{ width: side, height: side }} aria-label="Game board">
+          <div className="grid-overlay" style={{ backgroundSize: `${cellSize}px ${cellSize}px` }} />
+          <Snake snake={snake} cellSize={cellSize} gridSize={gridSize} direction={direction} />
+          <Food food={food} cellSize={cellSize} />
+          <div className="board-ring" />
         </div>
-      </div>
+      )}
     </div>
   )
 }
